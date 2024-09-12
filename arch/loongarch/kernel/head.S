@@ -42,35 +42,46 @@ SYM_DATA(kernel_fsize, .long _kernel_fsize);
 	.align 12
 
 SYM_CODE_START(kernel_entry)			# kernel entry point
+#ifdef CONFIG_32BIT
+	/*
+	 * Set up a DMW based on current address to ensure we don't
+	 * lose access to the kernel image before jumping VIRT.
+	 */
+	pcaddi		t0, 0
+	PTR_LI		t1, ~TO_PHYS_MASK
+	and		t0, t0, t1
+	ori		t0, t0, (CSR_DMW1_PLV0 | CSR_DMW1_MAT)
+	csrwr		t0, LOONGARCH_CSR_DMWIN0
 
+	PTR_LI		t0, CSR_DMW1_INIT	# CAC for JUMP_VIRT
+	csrwr		t0, LOONGARCH_CSR_DMWIN1
+
+	ENABLE_PG	t0
+	JUMP_VIRT_ADDR	t0, t1
+	SETUP_DMWINS	t0
+#else
 	/* Config direct window and set PG */
 	SETUP_DMWINS	t0
 	JUMP_VIRT_ADDR	t0, t1
-
-	/* Enable PG */
-	li.w		t0, 0xb0		# PLV=0, IE=0, PG=1
-	csrwr		t0, LOONGARCH_CSR_CRMD
-	li.w		t0, 0x04		# PLV=0, PIE=1, PWE=0
-	csrwr		t0, LOONGARCH_CSR_PRMD
-	li.w		t0, 0x00		# FPE=0, SXE=0, ASXE=0, BTE=0
-	csrwr		t0, LOONGARCH_CSR_EUEN
+	ENABLE_PG	t0
+#endif
 
 	la.pcrel	t0, __bss_start		# clear .bss
-	st.d		zero, t0, 0
+	LONG_S		zero, t0, 0
 	la.pcrel	t1, __bss_stop - LONGSIZE
 1:
-	addi.d		t0, t0, LONGSIZE
-	st.d		zero, t0, 0
+	PTR_ADDI	t0, t0, LONGSIZE
+	LONG_S		zero, t0, 0
 	bne		t0, t1, 1b
 
 	la.pcrel	t0, fw_arg0
-	st.d		a0, t0, 0		# firmware arguments
+	PTR_S		a0, t0, 0		# firmware arguments
 	la.pcrel	t0, fw_arg1
-	st.d		a1, t0, 0
+	PTR_S		a1, t0, 0
 	la.pcrel	t0, fw_arg2
-	st.d		a2, t0, 0
+	PTR_S		a2, t0, 0
 
-#ifdef CONFIG_PAGE_SIZE_4KB
+#if defined(CONFIG_64BIT) && defined(CONFIG_PAGE_SIZE_4KB)
 	li.d		t0, 0
 	li.d		t1, CSR_STFILL
 	csrxchg		t0, t1, LOONGARCH_CSR_IMPCTL1
@@ -98,7 +109,7 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 
 	/* Jump to the new kernel: new_pc = current_pc + random_offset */
 	pcaddi		t0, 0
-	add.d		t0, t0, a0
+	PTR_ADD		t0, t0, a0
 	jirl		zero, t0, 0xc
 #endif /* CONFIG_RANDOMIZE_BASE */
 
@@ -125,8 +136,8 @@ SYM_CODE_START(smpboot_entry)
 	JUMP_VIRT_ADDR	t0, t1
 
 #ifdef CONFIG_PAGE_SIZE_4KB
-	li.d		t0, 0
-	li.d		t1, CSR_STFILL
+	LONG_LI		t0, 0
+	LONG_LI		t1, CSR_STFILL
 	csrxchg		t0, t1, LOONGARCH_CSR_IMPCTL1
 #endif
 	/* Enable PG */

@@ -54,11 +54,13 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "Model Name\t\t: %s\n", __cpu_full_name[n]);
 	seq_printf(m, "CPU Revision\t\t: 0x%02x\n", version);
 	seq_printf(m, "FPU Revision\t\t: 0x%02x\n", fp_version);
+#if 0
 	seq_printf(m, "CPU MHz\t\t\t: %llu.%02llu\n",
 		      cpu_clock_freq / 1000000, (cpu_clock_freq / 10000) % 100);
 	seq_printf(m, "BogoMIPS\t\t: %llu.%02llu\n",
 		      (lpj_fine * cpu_clock_freq / const_clock_freq) / (500000/HZ),
 		      ((lpj_fine * cpu_clock_freq / const_clock_freq) / (5000/HZ)) % 100);
+#endif
 	seq_printf(m, "TLB Entries\t\t: %d\n", cpu_data[n].tlbsize);
 	seq_printf(m, "Address Sizes\t\t: %d bits physical, %d bits virtual\n",
 		      cpu_pabits + 1, cpu_vabits + 1);

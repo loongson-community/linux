@@ -27,7 +27,7 @@ endif
 64bit-emul		= elf64loongarch
 
 CC_FLAGS_FPU		:= -mfpu=64
-CC_FLAGS_NO_FPU		:= -msoft-float
+CC_FLAGS_NO_FPU		:=
 
 ifdef CONFIG_UNWINDER_ORC
 orc_hash_h := arch/$(SRCARCH)/include/generated/asm/orc_hash.h
@@ -49,6 +49,9 @@ endif
 ifdef CONFIG_64BIT
 tool-archpref		= $(64bit-tool-archpref)
 UTS_MACHINE		:= loongarch64
+else
+tool-archpref		= $(32bit-tool-archpref)
+UTS_MACHINE		:= loongarch32
 endif
 
 ifneq ($(SUBARCH),$(ARCH))
@@ -60,6 +63,9 @@ endif
 ifdef CONFIG_64BIT
 ld-emul			= $(64bit-emul)
 cflags-y		+= -mabi=lp64s
+else
+ld-emul			= $(32bit-emul)
+cflags-y		+= -mabi=ilp32s
 endif
 
 cflags-y			+= -pipe $(CC_FLAGS_NO_FPU)
@@ -120,7 +126,12 @@ ifndef CONFIG_KASAN
 cflags-y += -fno-builtin-memcpy -fno-builtin-memmove -fno-builtin-memset
 endif
 
+ifdef CONFIG_64BIT
 load-y		= 0x9000000000200000
+else
+load-y		= 0xa0200000
+endif
+
 bootvars-y	= VMLINUX_LOAD_ADDRESS=$(load-y)
 
 drivers-$(CONFIG_PCI)		+= arch/loongarch/pci/

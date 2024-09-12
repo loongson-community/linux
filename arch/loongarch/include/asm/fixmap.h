@@ -13,6 +13,10 @@
 enum fixed_addresses {
 	FIX_HOLE,
 	FIX_EARLYCON_MEM_BASE,
+	__end_of_permanent_fixed_addresses,
+
+	FIX_KMAP_BEGIN = __end_of_permanent_fixed_addresses,
+	FIX_KMAP_END = FIX_KMAP_BEGIN + (KM_MAX_IDX * NR_CPUS) - 1,
 	__end_of_fixed_addresses
 };
 

@@ -14,19 +14,31 @@
 #define	_PAGE_GLOBAL_SHIFT	6
 #define	_PAGE_HUGE_SHIFT	6  /* HUGE is a PMD bit */
 #define	_PAGE_PRESENT_SHIFT	7
+#ifdef CONFIG_64BIT
 #define	_PAGE_WRITE_SHIFT	8
 #define	_PAGE_MODIFIED_SHIFT	9
 #define	_PAGE_PROTNONE_SHIFT	10
 #define	_PAGE_SPECIAL_SHIFT	11
 #define	_PAGE_HGLOBAL_SHIFT	12 /* HGlobal is a PMD bit */
 #define	_PAGE_PFN_SHIFT		12
+#else
+#define	_PAGE_HGLOBAL_SHIFT	8 /* HGlobal is a PMD bit */
+#define	_PAGE_PFN_SHIFT		8
+#endif
 #define	_PAGE_SWP_EXCLUSIVE_SHIFT 23
+#ifdef CONFIG_64BIT
 #define	_PAGE_PFN_END_SHIFT	48
 #define	_PAGE_DEVMAP_SHIFT	59
-#define	_PAGE_PRESENT_INVALID_SHIFT 60
+#define	_PAGE_PROTNONE_SHIFT	60
 #define	_PAGE_NO_READ_SHIFT	61
 #define	_PAGE_NO_EXEC_SHIFT	62
 #define	_PAGE_RPLV_SHIFT	63
+#else
+#define	_PAGE_PFN_END_SHIFT	28
+#define	_PAGE_WRITE_SHIFT	29
+#define	_PAGE_MODIFIED_SHIFT	30
+#define	_PAGE_PRESENT_INVALID_SHIFT 31
+#endif
 
 /* Used by software */
 #define _PAGE_PRESENT		(_ULCAST_(1) << _PAGE_PRESENT_SHIFT)
@@ -34,9 +46,21 @@
 #define _PAGE_WRITE		(_ULCAST_(1) << _PAGE_WRITE_SHIFT)
 #define _PAGE_ACCESSED		(_ULCAST_(1) << _PAGE_ACCESSED_SHIFT)
 #define _PAGE_MODIFIED		(_ULCAST_(1) << _PAGE_MODIFIED_SHIFT)
-#define _PAGE_PROTNONE		(_ULCAST_(1) << _PAGE_PROTNONE_SHIFT)
+#ifdef _PAGE_SPECIAL_SHIFT
 #define _PAGE_SPECIAL		(_ULCAST_(1) << _PAGE_SPECIAL_SHIFT)
+#else
+#define _PAGE_SPECIAL		0
+#endif
+#ifdef _PAGE_PROTNONE_SHIFT
+#define _PAGE_PROTNONE		(_ULCAST_(1) << _PAGE_PROTNONE_SHIFT)
+#else
+#define _PAGE_PROTNONE		0
+#endif
+#ifdef _PAGE_DEVMAP_SHIFT
 #define _PAGE_DEVMAP		(_ULCAST_(1) << _PAGE_DEVMAP_SHIFT)
+#else
+#define _PAGE_DEVMAP		0
+#endif
 
 /* We borrow bit 23 to store the exclusive marker in swap PTEs. */
 #define _PAGE_SWP_EXCLUSIVE	(_ULCAST_(1) << _PAGE_SWP_EXCLUSIVE_SHIFT)
@@ -48,12 +72,23 @@
 #define _PAGE_GLOBAL		(_ULCAST_(1) << _PAGE_GLOBAL_SHIFT)
 #define _PAGE_HUGE		(_ULCAST_(1) << _PAGE_HUGE_SHIFT)
 #define _PAGE_HGLOBAL		(_ULCAST_(1) << _PAGE_HGLOBAL_SHIFT)
-#define _PAGE_NO_READ		(_ULCAST_(1) << _PAGE_NO_READ_SHIFT)
-#define _PAGE_NO_EXEC		(_ULCAST_(1) << _PAGE_NO_EXEC_SHIFT)
-#define _PAGE_RPLV		(_ULCAST_(1) << _PAGE_RPLV_SHIFT)
 #define _CACHE_MASK		(_ULCAST_(3) << _CACHE_SHIFT)
 #define PFN_PTE_SHIFT		(PAGE_SHIFT - 12 + _PAGE_PFN_SHIFT)
-
+#ifdef _PAGE_NO_READ_SHIFT
+#define _PAGE_NO_READ		(_ULCAST_(1) << _PAGE_NO_READ_SHIFT)
+#else
+#define _PAGE_NO_READ		0
+#endif
+#ifdef _PAGE_NO_EXEC_SHIFT
+#define _PAGE_NO_EXEC		(_ULCAST_(1) << _PAGE_NO_EXEC_SHIFT)
+#else
+#define _PAGE_NO_EXEC		0
+#endif
+#ifdef _PAGE_RPLV_SHIFT
+#define _PAGE_RPLV		(_ULCAST_(1) << _PAGE_RPLV_SHIFT)
+#else
+#define _PAGE_RPLV		0
+#endif
 #define _PAGE_USER	(PLV_USER << _PAGE_PLV_SHIFT)
 #define _PAGE_KERN	(PLV_KERN << _PAGE_PLV_SHIFT)
 

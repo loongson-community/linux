@@ -27,7 +27,7 @@ register unsigned long __my_cpu_offset __asm__("$r21");
 static inline void set_my_cpu_offset(unsigned long off)
 {
 	__my_cpu_offset = off;
-	csr_write64(off, PERCPU_BASE_KS);
+	csr_write(off, PERCPU_BASE_KS);
 }
 
 #define __my_cpu_offset					\
@@ -36,6 +36,7 @@ static inline void set_my_cpu_offset(unsigned long off)
 	__my_cpu_offset;				\
 })
 
+#ifdef CONFIG_CPU_HAS_AMO
 #define PERCPU_OP(op, asm_op, c_op)					\
 static __always_inline unsigned long __percpu_##op(void *ptr,		\
 			unsigned long val, int size)			\
@@ -67,7 +68,9 @@ PERCPU_OP(add, add, +)
 PERCPU_OP(and, and, &)
 PERCPU_OP(or, or, |)
 #undef PERCPU_OP
+#endif
 
+#ifdef CONFIG_64BIT
 static __always_inline unsigned long __percpu_read(void __percpu *ptr, int size)
 {
 	unsigned long ret;
@@ -136,7 +139,9 @@ static __always_inline void __percpu_write(void __percpu *ptr, unsigned long val
 		BUILD_BUG();
 	}
 }
+#endif
 
+#if 0
 static __always_inline unsigned long __percpu_xchg(void *ptr, unsigned long val, int size)
 {
 	switch (size) {
@@ -156,6 +161,7 @@ static __always_inline unsigned long __percpu_xchg(void *ptr, unsigned long val,
 
 	return 0;
 }
+#endif
 
 /* this_cpu_cmpxchg */
 #define _protect_cmpxchg_local(pcp, o, n)			\
@@ -189,6 +195,7 @@ do {									\
 	__retval;						\
 })
 
+#ifdef CONFIG_CPU_HAS_AMO
 #define _percpu_add(pcp, val) \
 	_pcp_protect(__percpu_add, pcp, val)
 
@@ -199,10 +206,12 @@ do {									\
 
 #define _percpu_or(pcp, val) \
 	_pcp_protect(__percpu_or, pcp, val)
+#endif
 
 #define _percpu_xchg(pcp, val) ((typeof(pcp)) \
-	_pcp_protect(__percpu_xchg, pcp, (unsigned long)(val)))
+	_pcp_protect(__arch_xchg, pcp, (unsigned long)(val)))
 
+#ifdef CONFIG_CPU_HAS_AMO
 #define this_cpu_add_4(pcp, val) _percpu_add(pcp, val)
 #define this_cpu_add_8(pcp, val) _percpu_add(pcp, val)
 
@@ -214,7 +223,9 @@ do {									\
 
 #define this_cpu_or_4(pcp, val) _percpu_or(pcp, val)
 #define this_cpu_or_8(pcp, val) _percpu_or(pcp, val)
+#endif
 
+#ifdef CONFIG_64BIT
 #define this_cpu_read_1(pcp) _percpu_read(pcp)
 #define this_cpu_read_2(pcp) _percpu_read(pcp)
 #define this_cpu_read_4(pcp) _percpu_read(pcp)
@@ -224,6 +235,7 @@ do {									\
 #define this_cpu_write_2(pcp, val) _percpu_write(pcp, val)
 #define this_cpu_write_4(pcp, val) _percpu_write(pcp, val)
 #define this_cpu_write_8(pcp, val) _percpu_write(pcp, val)
+#endif
 
 #define this_cpu_xchg_1(pcp, val) _percpu_xchg(pcp, val)
 #define this_cpu_xchg_2(pcp, val) _percpu_xchg(pcp, val)

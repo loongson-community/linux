@@ -4,6 +4,7 @@ menu "Accelerated Cryptographic Algorithms for CPU (loongarch)"
 
 config CRYPTO_CRC32_LOONGARCH
 	tristate "CRC32c and CRC32"
+	depends on 64BIT
 	select CRC32
 	select CRYPTO_HASH
 	help

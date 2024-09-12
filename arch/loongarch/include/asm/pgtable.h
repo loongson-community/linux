@@ -10,6 +10,7 @@
 #define _ASM_PGTABLE_H
 
 #include <linux/compiler.h>
+#include <asm/asm.h>
 #include <asm/addrspace.h>
 #include <asm/page.h>
 #include <asm/pgtable-bits.h>
@@ -23,37 +24,45 @@
 #endif
 
 #if CONFIG_PGTABLE_LEVELS == 2
-#define PGDIR_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT - 3))
+#define PGDIR_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT - PTRLOG))
 #elif CONFIG_PGTABLE_LEVELS == 3
-#define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT - 3))
+#define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT - PTRLOG))
 #define PMD_SIZE	(1UL << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
-#define PGDIR_SHIFT	(PMD_SHIFT + (PAGE_SHIFT - 3))
+#define PGDIR_SHIFT	(PMD_SHIFT + (PAGE_SHIFT - PTRLOG))
 #elif CONFIG_PGTABLE_LEVELS == 4
-#define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT - 3))
+#define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT - PTRLOG))
 #define PMD_SIZE	(1UL << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
-#define PUD_SHIFT	(PMD_SHIFT + (PAGE_SHIFT - 3))
+#define PUD_SHIFT	(PMD_SHIFT + (PAGE_SHIFT - PTRLOG))
 #define PUD_SIZE	(1UL << PUD_SHIFT)
 #define PUD_MASK	(~(PUD_SIZE-1))
-#define PGDIR_SHIFT	(PUD_SHIFT + (PAGE_SHIFT - 3))
+#define PGDIR_SHIFT	(PUD_SHIFT + (PAGE_SHIFT - PTRLOG))
 #endif
 
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
-#define VA_BITS		(PGDIR_SHIFT + (PAGE_SHIFT - 3))
+#ifdef CONFIG_64BIT
+#define VA_BITS		(PGDIR_SHIFT + (PAGE_SHIFT - PTRLOG))
+#else
+#define VA_BITS		32
+#endif
 
-#define PTRS_PER_PGD	(PAGE_SIZE >> 3)
+#define PTRS_PER_PGD	(PAGE_SIZE >> PTRLOG)
 #if CONFIG_PGTABLE_LEVELS > 3
-#define PTRS_PER_PUD	(PAGE_SIZE >> 3)
+#define PTRS_PER_PUD	(PAGE_SIZE >> PTRLOG)
 #endif
 #if CONFIG_PGTABLE_LEVELS > 2
-#define PTRS_PER_PMD	(PAGE_SIZE >> 3)
+#define PTRS_PER_PMD	(PAGE_SIZE >> PTRLOG)
 #endif
-#define PTRS_PER_PTE	(PAGE_SIZE >> 3)
+#define PTRS_PER_PTE	(PAGE_SIZE >> PTRLOG)
 
-#define USER_PTRS_PER_PGD       ((TASK_SIZE64 / PGDIR_SIZE)?(TASK_SIZE64 / PGDIR_SIZE):1)
+#ifdef CONFIG_64BIT
+#define USER_PTRS_PER_PGD       ((TASK64_SIZE / PGDIR_SIZE)?(TASK64_SIZE / PGDIR_SIZE):1)
+#else
+#define USER_PTRS_PER_PGD       (TASK_SIZE / PGDIR_SIZE)
+#endif
 
 #ifndef __ASSEMBLY__
 
@@ -74,13 +83,14 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 
 #define ZERO_PAGE(vaddr)	virt_to_page(empty_zero_page)
 
+#ifdef CONFIG_64BIT
 /*
  * TLB refill handlers may also map the vmalloc area into xkvrange.
  * Avoid the first couple of pages so NULL pointer dereferences will
  * still reliably trap.
  */
 #define MODULES_VADDR	(vm_map_base + PCI_IOSIZE + (2 * PAGE_SIZE))
-#define MODULES_END	(MODULES_VADDR + SZ_256M)
+#define MODULES_END	(MODULES_VADDR + MODULE_SIZE)
 
 #ifdef CONFIG_KFENCE
 #define KFENCE_AREA_SIZE	(((CONFIG_KFENCE_NUM_OBJECTS + 1) * 2 + 2) * PAGE_SIZE)
@@ -105,6 +115,10 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 
 #define KFENCE_AREA_START	(VMEMMAP_END + 1)
 #define KFENCE_AREA_END		(KFENCE_AREA_START + KFENCE_AREA_SIZE - 1)
+#else
+#define VMALLOC_START	((unsigned long)PCI_IOBASE + PCI_IOSIZE)
+#define VMALLOC_END	(FIXADDR_START - 1)
+#endif
 
 #define ptep_get(ptep) READ_ONCE(*(ptep))
 #define pmdp_get(pmdp) READ_ONCE(*(pmdp))
@@ -434,8 +448,10 @@ static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; 
 static inline pte_t pte_mkspecial(pte_t pte)	{ pte_val(pte) |= _PAGE_SPECIAL; return pte; }
 #endif /* CONFIG_ARCH_HAS_PTE_SPECIAL */
 
+#if defined(CONFIG_ARCH_HAS_PTE_DEVMAP)
 static inline int pte_devmap(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_DEVMAP); }
 static inline pte_t pte_mkdevmap(pte_t pte)	{ pte_val(pte) |= _PAGE_DEVMAP; return pte; }
+#endif /* CONFIG_ARCH_HAS_PTE_DEVMAP */
 
 #define pte_accessible pte_accessible
 static inline unsigned long pte_accessible(struct mm_struct *mm, pte_t a)
@@ -571,6 +587,7 @@ static inline pmd_t pmd_mkyoung(pmd_t pmd)
 	return pmd;
 }
 
+#ifdef CONFIG_ARCH_HAS_PTE_DEVMAP
 static inline int pmd_devmap(pmd_t pmd)
 {
 	return !!(pmd_val(pmd) & _PAGE_DEVMAP);
@@ -581,6 +598,7 @@ static inline pmd_t pmd_mkdevmap(pmd_t pmd)
 	pmd_val(pmd) |= _PAGE_DEVMAP;
 	return pmd;
 }
+#endif
 
 static inline struct page *pmd_page(pmd_t pmd)
 {
@@ -625,6 +643,7 @@ static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
 #ifdef CONFIG_NUMA_BALANCING
 static inline long pte_protnone(pte_t pte)
 {
+	BUILD_BUG_ON(!_PAGE_PROTNONE);
 	return (pte_val(pte) & _PAGE_PROTNONE);
 }
 
@@ -637,7 +656,7 @@ static inline long pmd_protnone(pmd_t pmd)
 #define pmd_leaf(pmd)		((pmd_val(pmd) & _PAGE_HUGE) != 0)
 #define pud_leaf(pud)		((pud_val(pud) & _PAGE_HUGE) != 0)
 
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && defined(CONFIG_ARCH_PTE_DEVMAP)
 #define pud_devmap(pud)		(0)
 #define pgd_devmap(pgd)		(0)
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */

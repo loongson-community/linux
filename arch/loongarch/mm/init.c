@@ -73,6 +73,10 @@ void __init paging_init(void)
 #endif
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 
+#ifdef CONFIG_HIGHMEM
+	max_zone_pfn[ZONE_HIGHMEM] = max_pfn;
+#endif
+
 	free_area_init(max_zone_pfns);
 }
 
@@ -216,6 +220,7 @@ void __init __set_fixmap(enum fixed_addresses idx,
 	BUG_ON(idx <= FIX_HOLE || idx >= __end_of_fixed_addresses);
 
 	ptep = populate_kernel_pte(addr);
+
 	if (!pte_none(ptep_get(ptep))) {
 		pte_ERROR(*ptep);
 		return;

@@ -157,6 +157,7 @@ typedef double elf_fpreg_t;
 typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
 void loongarch_dump_regs64(u64 *uregs, const struct pt_regs *regs);
+void loongarch_dump_regs32(u32 *uregs, const struct pt_regs *regs);
 
 #ifdef CONFIG_32BIT
 /*

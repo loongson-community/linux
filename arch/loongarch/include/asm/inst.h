@@ -433,8 +433,9 @@ static inline bool is_branch_ins(union loongarch_instruction *ip)
 
 static inline bool is_ra_save_ins(union loongarch_instruction *ip)
 {
-	/* st.d $ra, $sp, offset */
-	return ip->reg2i12_format.opcode == std_op &&
+	const u32 opcode = IS_ENABLED(CONFIG_64BIT) ? std_op : stw_op;
+	/* st.w / st.d $ra, $sp, offset */
+	return ip->reg2i12_format.opcode == opcode &&
 		ip->reg2i12_format.rj == LOONGARCH_GPR_SP &&
 		ip->reg2i12_format.rd == LOONGARCH_GPR_RA &&
 		!is_imm12_negative(ip->reg2i12_format.immediate);
@@ -442,8 +443,9 @@ static inline bool is_ra_save_ins(union loongarch_instruction *ip)
 
 static inline bool is_stack_alloc_ins(union loongarch_instruction *ip)
 {
-	/* addi.d $sp, $sp, -imm */
-	return ip->reg2i12_format.opcode == addid_op &&
+	const u32 opcode = IS_ENABLED(CONFIG_64BIT) ? addid_op : addiw_op;
+	/* addi.w / addi.d $sp, $sp, -imm */
+	return ip->reg2i12_format.opcode == opcode &&
 		ip->reg2i12_format.rj == LOONGARCH_GPR_SP &&
 		ip->reg2i12_format.rd == LOONGARCH_GPR_SP &&
 		is_imm12_negative(ip->reg2i12_format.immediate);

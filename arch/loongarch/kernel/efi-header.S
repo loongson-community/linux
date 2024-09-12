@@ -9,7 +9,11 @@
 	.macro	__EFI_PE_HEADER
 	.long	PE_MAGIC
 .Lcoff_header:
+#ifdef CONFIG_64BIT
 	.short	IMAGE_FILE_MACHINE_LOONGARCH64		/* Machine */
+#else
+	.short	IMAGE_FILE_MACHINE_LOONGARCH32		/* Machine */
+#endif
 	.short	.Lsection_count				/* NumberOfSections */
 	.long	0 					/* TimeDateStamp */
 	.long	0					/* PointerToSymbolTable */

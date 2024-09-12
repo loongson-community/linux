@@ -372,4 +372,22 @@ void loongarch_dump_regs64(u64 *uregs, const struct pt_regs *regs)
 	uregs[LOONGARCH_EF_CSR_ECFG] = regs->csr_ecfg;
 	uregs[LOONGARCH_EF_CSR_ESTAT] = regs->csr_estat;
 }
-#endif /* CONFIG_64BIT */
+#else
+void loongarch_dump_regs32(u32 *uregs, const struct pt_regs *regs)
+{
+	unsigned int i;
+
+	for (i = LOONGARCH_EF_R1; i <= LOONGARCH_EF_R31; i++) {
+		uregs[i] = regs->regs[i - LOONGARCH_EF_R0];
+	}
+
+	uregs[LOONGARCH_EF_ORIG_A0] = regs->orig_a0;
+	uregs[LOONGARCH_EF_CSR_ERA] = regs->csr_era;
+	uregs[LOONGARCH_EF_CSR_BADV] = regs->csr_badvaddr;
+	uregs[LOONGARCH_EF_CSR_CRMD] = regs->csr_crmd;
+	uregs[LOONGARCH_EF_CSR_PRMD] = regs->csr_prmd;
+	uregs[LOONGARCH_EF_CSR_EUEN] = regs->csr_euen;
+	uregs[LOONGARCH_EF_CSR_ECFG] = regs->csr_ecfg;
+	uregs[LOONGARCH_EF_CSR_ESTAT] = regs->csr_estat;
+}
+#endif

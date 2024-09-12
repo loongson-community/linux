@@ -10,14 +10,22 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
+#include <linux/stringify.h>
+#include <asm/asm.h>
 
 #define JUMP_LABEL_NOP_SIZE	4
 
+#ifdef CONFIG_64BIT
+#define JUMP_LABEL_TYPE		".quad"
+#else
+#define JUMP_LABEL_TYPE		".long"
+#endif
+
 #define JUMP_TABLE_ENTRY				\
 	 ".pushsection	__jump_table, \"aw\"	\n\t"	\
-	 ".align	3			\n\t"	\
+	 ".align	" __stringify(PTRLOG) "	\n\t"	\
 	 ".long		1b - ., %l[l_yes] - .	\n\t"	\
-	 ".quad		%0 - .			\n\t"	\
+	 JUMP_LABEL_TYPE " %0 - .		\n\t"	\
 	 ".popsection				\n\t"
 
 static __always_inline bool arch_static_branch(struct static_key * const key, const bool branch)

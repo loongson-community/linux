@@ -22,7 +22,11 @@
 #ifndef PHYS_OFFSET
 #define PHYS_OFFSET	_UL(0)
 #endif
+#ifdef __NEED_ADDRBITS_PROBE
 extern unsigned long vm_map_base;
+#else
+#define vm_map_base	KVRANGE
+#endif
 #endif /* __ASSEMBLY__ */
 
 #ifndef IO_BASE
@@ -38,10 +42,18 @@ extern unsigned long vm_map_base;
 #endif
 
 #ifndef WRITECOMBINE_BASE
+#if CSR_DMW2_INIT != 0
 #define WRITECOMBINE_BASE	CSR_DMW2_BASE
+#else
+#define WRITECOMBINE_BASE	CSR_DMW0_BASE
+#endif
 #endif
 
+#ifdef CONFIG_64BIT
 #define DMW_PABITS	48
+#else
+#define DMW_PABITS	28
+#endif
 #define TO_PHYS_MASK	((1ULL << DMW_PABITS) - 1)
 
 /*

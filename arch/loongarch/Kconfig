@@ -23,8 +23,8 @@ config LOONGARCH
 	select ARCH_HAS_KERNEL_FPU_SUPPORT if CPU_HAS_FPU
 	select ARCH_HAS_NMI_SAFE_THIS_CPU_OPS
 	select ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
-	select ARCH_HAS_PTE_DEVMAP
-	select ARCH_HAS_PTE_SPECIAL
+	select ARCH_HAS_PTE_DEVMAP if 64BIT
+	select ARCH_HAS_PTE_SPECIAL if 64BIT
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_INLINE_READ_LOCK if !PREEMPTION
 	select ARCH_INLINE_READ_LOCK_BH if !PREEMPTION
@@ -55,7 +55,6 @@ config LOONGARCH
 	select ARCH_KEEP_MEMBLOCK
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
-	select ARCH_SPARSEMEM_ENABLE
 	select ARCH_STACKWALK
 	select ARCH_SUPPORTS_ACPI
 	select ARCH_SUPPORTS_ATOMIC_RMW
@@ -78,12 +77,13 @@ config LOONGARCH
 	select COMMON_CLK
 	select CPU_PM
 	select EFI
+	select GENERIC_ATOMIC64 if !64BIT
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CMOS_UPDATE
 	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_CPU_DEVICES
 	select GENERIC_ENTRY
-	select GENERIC_GETTIMEOFDAY
+	select GENERIC_GETTIMEOFDAY if HAVE_GENERIC_VDSO
 	select GENERIC_IOREMAP if !ARCH_IOREMAP
 	select GENERIC_IRQ_MATRIX_ALLOCATOR
 	select GENERIC_IRQ_MULTI_HANDLER
@@ -98,14 +98,14 @@ config LOONGARCH
 	select GENERIC_PCI_IOMAP
 	select GENERIC_SCHED_CLOCK
 	select GENERIC_SMP_IDLE_THREAD
-	select GENERIC_TIME_VSYSCALL
-	select GENERIC_VDSO_TIME_NS
+	select GENERIC_TIME_VSYSCALL if HAVE_GENERIC_VDSO
+	select GENERIC_VDSO_TIME_NS if HAVE_GENERIC_VDSO
 	select GPIOLIB
 	select HAS_IOPORT
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_JUMP_LABEL_RELATIVE
-	select HAVE_ARCH_KASAN
+	select HAVE_ARCH_KASAN if 64BIT
 	select HAVE_ARCH_KFENCE
 	select HAVE_ARCH_KGDB if PERF_EVENTS
 	select HAVE_ARCH_MMAP_RND_BITS if MMU
@@ -114,7 +114,7 @@ config LOONGARCH
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
-	select HAVE_ARCH_USERFAULTFD_MINOR if USERFAULTFD
+	select HAVE_ARCH_USERFAULTFD_MINOR if 64BIT && USERFAULTFD
 	select HAVE_ASM_MODVERSIONS
 	select HAVE_CONTEXT_TRACKING_USER
 	select HAVE_C_RECORDMCOUNT
@@ -125,7 +125,7 @@ config LOONGARCH
 	select HAVE_DYNAMIC_FTRACE_WITH_ARGS
 	select HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
-	select HAVE_EBPF_JIT
+	select HAVE_EBPF_JIT if 64BIT
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS if !ARCH_STRICT_ALIGN
 	select HAVE_EXIT_THREAD
 	select HAVE_GUP_FAST
@@ -136,7 +136,7 @@ config LOONGARCH
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
 	select HAVE_GCC_PLUGINS
-	select HAVE_GENERIC_VDSO
+	select HAVE_GENERIC_VDSO if 64BIT
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS
 	select HAVE_IOREMAP_PROT
 	select HAVE_IRQ_EXIT_ON_IRQ_STACK
@@ -147,9 +147,9 @@ config LOONGARCH
 	select HAVE_LIVEPATCH
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NMI
-	select HAVE_OBJTOOL if AS_HAS_EXPLICIT_RELOCS && AS_HAS_THIN_ADD_SUB && !CC_IS_CLANG
+	select HAVE_OBJTOOL if AS_HAS_EXPLICIT_RELOCS && AS_HAS_THIN_ADD_SUB && !CC_IS_CLANG && 64BIT
 	select HAVE_PCI
-	select HAVE_PERF_EVENTS
+	select HAVE_PERF_EVENTS if 64BIT
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_PREEMPT_DYNAMIC_KEY
@@ -192,13 +192,13 @@ config LOONGARCH
 	select USE_PERCPU_NUMA_NODE_ID
 	select USER_STACKTRACE_SUPPORT
 	select VDSO_GETRANDOM
-	select ZONE_DMA32
+	select ZONE_DMA32 if 64BIT
+
+config 64BIT
+	bool
 
 config 32BIT
 	bool
-
-config 64BIT
-	def_bool y
 
 config GENERIC_BUG
 	def_bool y
@@ -239,7 +239,7 @@ config MACH_LOONGSON64
 	def_bool 64BIT
 
 config FIX_EARLYCON_MEM
-	def_bool y
+	def_bool !ARCH_IOREMAP
 
 config PGTABLE_2LEVEL
 	bool
@@ -283,16 +283,40 @@ config AS_HAS_LVZ_EXTENSION
 
 menu "Kernel type and options"
 
+choice
+	prompt "Base ISA"
+	default ARCH_LOONGARCH64
+	help
+	  This selects the base ISA that this kernel will target and must match
+	  the target platform.
+
+config ARCH_LOONGARCH32
+	bool "LoongArch32 Standard (LA32S)"
+	select 32BIT
+
+config ARCH_LOONGARCH64
+	bool "LoongArch64 (LA64)"
+	select 64BIT
+endchoice
+
 source "kernel/Kconfig.hz"
 
 choice
 	prompt "Page Table Layout"
-	default 16KB_2LEVEL if 32BIT
+	default 4KB_2LEVEL if 32BIT
 	default 16KB_3LEVEL if 64BIT
 	help
 	  Allows choosing the page table layout, which is a combination
 	  of page size and page table levels. The size of virtual memory
 	  address space are determined by the page table layout.
+
+config 4KB_2LEVEL
+	bool "4KB with 2 levels"
+	select HAVE_PAGE_SIZE_4KB
+	select PGTABLE_2LEVEL
+	help
+	  This option selects 16KB page size with 2 level page tables, which
+	  support a maximum of 32 bits of application virtual memory.
 
 config 4KB_3LEVEL
 	bool "4KB with 3 levels"
@@ -440,6 +464,7 @@ config SCHED_SMT
 
 config SMP
 	bool "Multi-Processing support"
+	depends on 64BIT
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, say N. If you have a system with more
@@ -477,7 +502,7 @@ config NR_CPUS
 
 config NUMA
 	bool "NUMA Support"
-	select SMP
+	depends on SMP
 	help
 	  Say Y to compile the kernel with NUMA (Non-Uniform Memory Access)
 	  support.  This option improves performance on systems with more
@@ -552,7 +577,7 @@ config CPU_HAS_FPU
 
 config CPU_HAS_LSX
 	bool "Support for the Loongson SIMD Extension"
-	depends on AS_HAS_LSX_EXTENSION
+	depends on AS_HAS_LSX_EXTENSION && 64BIT
 	help
 	  Loongson SIMD Extension (LSX) introduces 128 bit wide vector registers
 	  and a set of SIMD instructions to operate on them. When this option
@@ -599,7 +624,7 @@ config ARCH_SUPPORTS_KEXEC
 	def_bool y
 
 config ARCH_SUPPORTS_CRASH_DUMP
-	def_bool y
+	def_bool 64BIT
 
 config ARCH_SELECTS_CRASH_DUMP
 	def_bool y
@@ -612,6 +637,7 @@ config ARCH_HAS_GENERIC_CRASHKERNEL_RESERVATION
 config RELOCATABLE
 	bool "Relocatable kernel"
 	select ARCH_HAS_RELR
+	depends on 64BIT
 	help
 	  This builds the kernel as a Position Independent Executable (PIE),
 	  which retains all relocation metadata required, so as to relocate
@@ -675,7 +701,7 @@ config ARCH_FLATMEM_ENABLE
 	depends on !NUMA
 
 config ARCH_SPARSEMEM_ENABLE
-	def_bool y
+	def_bool 64BIT
 	select SPARSEMEM_VMEMMAP_ENABLE
 	help
 	  Say Y to support efficient handling of sparse physical memory,
@@ -692,10 +718,12 @@ config MMU
 	default y
 
 config ARCH_MMAP_RND_BITS_MIN
-	default 12
+	default 12 if 64BIT
+	default 8
 
 config ARCH_MMAP_RND_BITS_MAX
-	default 18
+	default 18 if 64BIT
+	default 15
 
 config ARCH_SUPPORTS_UPROBES
 	def_bool y

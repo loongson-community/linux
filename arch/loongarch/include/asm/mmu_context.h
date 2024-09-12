@@ -15,6 +15,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+#include <asm/io.h>
 #include <asm-generic/mm_hooks.h>
 
 /*
@@ -59,6 +60,16 @@ get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
 	cpu_context(cpu, mm) = asid_cache(cpu) = asid;
 }
 
+/*  */
+static inline unsigned long virt_to_pgdcsr(void *virt)
+{
+#ifdef CONFIG_64BIT
+	return (unsigned long)virt;
+#else
+	return virt_to_phys(virt);
+#endif
+}
+
 /*
  * Initialize the context related info for a new mm_struct
  * instance.
@@ -86,9 +97,9 @@ static inline void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *
 	write_csr_asid(cpu_asid(cpu, next));
 
 	if (next != &init_mm)
-		csr_write64((unsigned long)next->pgd, LOONGARCH_CSR_PGDL);
+		csr_write(virt_to_pgdcsr(next->pgd), LOONGARCH_CSR_PGDL);
 	else
-		csr_write64((unsigned long)invalid_pg_dir, LOONGARCH_CSR_PGDL);
+		csr_write(virt_to_pgdcsr(invalid_pg_dir), LOONGARCH_CSR_PGDL);
 
 	/*
 	 * Mark current->active_mm as not "active" anymore.

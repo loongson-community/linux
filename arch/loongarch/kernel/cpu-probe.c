@@ -59,15 +59,19 @@ static inline void set_elf_platform(int cpu, const char *plat)
 }
 
 /* MAP BASE */
+#ifdef __NEED_ADDRBITS_PROBE
 unsigned long vm_map_base;
 EXPORT_SYMBOL(vm_map_base);
+#endif
 
 static void cpu_probe_addrbits(struct cpuinfo_loongarch *c)
 {
 #ifdef __NEED_ADDRBITS_PROBE
 	c->pabits = (read_cpucfg(LOONGARCH_CPUCFG1) & CPUCFG1_PABITS) >> 4;
 	c->vabits = (read_cpucfg(LOONGARCH_CPUCFG1) & CPUCFG1_VABITS) >> 12;
-	vm_map_base = 0UL - (1UL << c->vabits);
+#else
+	c->pabits = cpu_pabits;
+	c->vabits = cpu_vabits;
 #endif
 }
 
@@ -226,8 +230,15 @@ static inline void cpu_probe_loongson(struct cpuinfo_loongarch *c, unsigned int 
 	if (!__cpu_full_name[cpu])
 		__cpu_full_name[cpu] = cpu_full_name;
 
+#ifdef CONFIG_64BIT
 	*vendor = iocsr_read64(LOONGARCH_IOCSR_VENDOR);
 	*cpuname = iocsr_read64(LOONGARCH_IOCSR_CPUNAME);
+#else
+	*vendor = iocsr_read32(LOONGARCH_IOCSR_VENDOR);
+	*vendor |= (u64)iocsr_read32(LOONGARCH_IOCSR_VENDOR + 4) << 32;
+	*cpuname = iocsr_read32(LOONGARCH_IOCSR_CPUNAME);
+	*cpuname |= (u64)iocsr_read32(LOONGARCH_IOCSR_CPUNAME + 4) << 32;
+#endif
 
 	switch (c->processor_id & PRID_SERIES_MASK) {
 	case PRID_SERIES_LA132:

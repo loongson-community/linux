@@ -31,8 +31,6 @@ void __init memblock_init(void)
 		case EFI_PERSISTENT_MEMORY:
 		case EFI_CONVENTIONAL_MEMORY:
 			memblock_add(mem_start, mem_size);
-			if (max_low_pfn < (mem_end >> PAGE_SHIFT))
-				max_low_pfn = mem_end >> PAGE_SHIFT;
 			break;
 		case EFI_PAL_CODE:
 		case EFI_UNUSABLE_MEMORY:
@@ -48,6 +46,9 @@ void __init memblock_init(void)
 			break;
 		}
 	}
+
+	max_pfn = PFN_DOWN(memblock_end_of_DRAM());
+	max_low_pfn = min(PFN_DOWN(HIGHMEM_START), max_pfn);
 
 	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
 

@@ -52,18 +52,26 @@
 #define unlock_lbt_owner()	({ pagefault_enable(); preempt_enable(); })
 
 /* Assembly functions to move context to/from the FPU */
+#ifdef CONFIG_CPU_HAS_FPU
 extern asmlinkage int
 _save_fp_context(void __user *fpregs, void __user *fcc, void __user *csr);
 extern asmlinkage int
 _restore_fp_context(void __user *fpregs, void __user *fcc, void __user *csr);
+#endif
+
+#ifdef CONFIG_CPU_HAS_LSX
 extern asmlinkage int
 _save_lsx_context(void __user *fpregs, void __user *fcc, void __user *fcsr);
 extern asmlinkage int
 _restore_lsx_context(void __user *fpregs, void __user *fcc, void __user *fcsr);
+#endif
+
+#ifdef CONFIG_CPU_HAS_LASX
 extern asmlinkage int
 _save_lasx_context(void __user *fpregs, void __user *fcc, void __user *fcsr);
 extern asmlinkage int
 _restore_lasx_context(void __user *fpregs, void __user *fcc, void __user *fcsr);
+#endif
 
 #ifdef CONFIG_CPU_HAS_LBT
 extern asmlinkage int _save_lbt_context(void __user *regs, void __user *eflags);
@@ -97,6 +105,7 @@ static void __user *get_ctx_through_ctxinfo(struct sctx_info *info)
 	return (void __user *)((char *)info + sizeof(struct sctx_info));
 }
 
+#ifdef CONFIG_CPU_HAS_FPU
 /*
  * Thread saved context copy to/from a signal context presumed to be on the
  * user stack, and therefore accessed with appropriate macros from uaccess.h.
@@ -138,7 +147,19 @@ static int copy_fpu_from_sigcontext(struct fpu_context __user *ctx)
 
 	return err;
 }
+#else
+static int copy_fpu_to_sigcontext(struct fpu_context __user *ctx)
+{
+	return 0;
+}
 
+static int copy_fpu_from_sigcontext(struct fpu_context __user *ctx)
+{
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_CPU_HAS_LSX
 static int copy_lsx_to_sigcontext(struct lsx_context __user *ctx)
 {
 	int i;
@@ -179,7 +200,19 @@ static int copy_lsx_from_sigcontext(struct lsx_context __user *ctx)
 
 	return err;
 }
+#else
+static __maybe_unused int copy_lsx_to_sigcontext(struct lsx_context __user *ctx)
+{
+	return 0;
+}
 
+static __maybe_unused int copy_lsx_from_sigcontext(struct lsx_context __user *ctx)
+{
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_CPU_HAS_LASX
 static int copy_lasx_to_sigcontext(struct lasx_context __user *ctx)
 {
 	int i;
@@ -228,6 +261,17 @@ static int copy_lasx_from_sigcontext(struct lasx_context __user *ctx)
 
 	return err;
 }
+#else
+static __maybe_unused int copy_lasx_to_sigcontext(struct lasx_context __user *ctx)
+{
+	return 0;
+}
+
+static __maybe_unused int copy_lasx_from_sigcontext(struct lasx_context __user *ctx)
+{
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_CPU_HAS_LBT
 static int copy_lbt_to_sigcontext(struct lbt_context __user *ctx)
@@ -278,6 +322,7 @@ static int copy_ftop_from_sigcontext(struct lbt_context __user *ctx)
 /*
  * Wrappers for the assembly _{save,restore}_fp_context functions.
  */
+#ifdef CONFIG_CPU_HAS_FPU
 static int save_hw_fpu_context(struct fpu_context __user *ctx)
 {
 	uint64_t __user *regs	= (uint64_t *)&ctx->regs;
@@ -295,7 +340,9 @@ static int restore_hw_fpu_context(struct fpu_context __user *ctx)
 
 	return _restore_fp_context(regs, fcc, fcsr);
 }
+#endif
 
+#ifdef CONFIG_CPU_HAS_LSX
 static int save_hw_lsx_context(struct lsx_context __user *ctx)
 {
 	uint64_t __user *regs	= (uint64_t *)&ctx->regs;
@@ -313,7 +360,9 @@ static int restore_hw_lsx_context(struct lsx_context __user *ctx)
 
 	return _restore_lsx_context(regs, fcc, fcsr);
 }
+#endif
 
+#ifdef CONFIG_CPU_HAS_LASX
 static int save_hw_lasx_context(struct lasx_context __user *ctx)
 {
 	uint64_t __user *regs	= (uint64_t *)&ctx->regs;
@@ -331,6 +380,7 @@ static int restore_hw_lasx_context(struct lasx_context __user *ctx)
 
 	return _restore_lasx_context(regs, fcc, fcsr);
 }
+#endif
 
 /*
  * Wrappers for the assembly _{save,restore}_lbt_context functions.
@@ -367,6 +417,7 @@ static int restore_hw_ftop_context(struct lbt_context __user *ctx)
 }
 #endif
 
+#ifdef CONFIG_CPU_HAS_FPU
 static int fcsr_pending(unsigned int __user *fcsr)
 {
 	int err, sig = 0;
@@ -385,10 +436,12 @@ static int fcsr_pending(unsigned int __user *fcsr)
 	}
 	return err ?: sig;
 }
+#endif
 
 /*
  * Helper routines
  */
+#ifdef CONFIG_CPU_HAS_FPU
 static int protected_save_fpu_context(struct extctx_layout *extctx)
 {
 	int err = 0;
@@ -457,7 +510,9 @@ static int protected_restore_fpu_context(struct extctx_layout *extctx)
 
 	return err ?: sig;
 }
+#endif
 
+#ifdef CONFIG_CPU_HAS_LSX
 static int protected_save_lsx_context(struct extctx_layout *extctx)
 {
 	int err = 0;
@@ -532,7 +587,9 @@ static int protected_restore_lsx_context(struct extctx_layout *extctx)
 
 	return err ?: sig;
 }
+#endif
 
+#ifdef CONFIG_CPU_HAS_LASX
 static int protected_save_lasx_context(struct extctx_layout *extctx)
 {
 	int err = 0;
@@ -613,6 +670,7 @@ static int protected_restore_lasx_context(struct extctx_layout *extctx)
 
 	return err ?: sig;
 }
+#endif
 
 #ifdef CONFIG_CPU_HAS_LBT
 static int protected_save_lbt_context(struct extctx_layout *extctx)
@@ -689,6 +747,7 @@ static int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 			    struct extctx_layout *extctx)
 {
 	int i, err = 0;
+	bool fpsimd_saved = false;
 	struct sctx_info __user *info;
 
 	err |= __put_user(regs->csr_era, &sc->sc_pc);
@@ -698,12 +757,26 @@ static int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 	for (i = 1; i < 32; i++)
 		err |= __put_user(regs->regs[i], &sc->sc_regs[i]);
 
-	if (extctx->lasx.addr)
+#ifdef CONFIG_CPU_HAS_LASX
+	if (extctx->lasx.addr && !fpsimd_saved) {
 		err |= protected_save_lasx_context(extctx);
-	else if (extctx->lsx.addr)
+		fpsimd_saved = true;
+	}
+#endif
+
+#ifdef CONFIG_CPU_HAS_LSX
+	if (extctx->lsx.addr && !fpsimd_saved) {
 		err |= protected_save_lsx_context(extctx);
-	else if (extctx->fpu.addr)
+		fpsimd_saved = true;
+	}
+#endif
+
+#ifdef CONFIG_CPU_HAS_FPU
+	if (extctx->fpu.addr && !fpsimd_saved) {
 		err |= protected_save_fpu_context(extctx);
+		fpsimd_saved = true;
+	}
+#endif
 
 #ifdef CONFIG_CPU_HAS_LBT
 	if (extctx->lbt.addr)
@@ -779,6 +852,7 @@ invalid:
 static int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 {
 	int i, err = 0;
+	bool fpsimd_restored = false;
 	struct extctx_layout extctx;
 
 	memset(&extctx, 0, sizeof(struct extctx_layout));
@@ -807,12 +881,26 @@ static int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc
 	for (i = 1; i < 32; i++)
 		err |= __get_user(regs->regs[i], &sc->sc_regs[i]);
 
-	if (extctx.lasx.addr)
+#ifdef CONFIG_CPU_HAS_LASX
+	if (extctx.lasx.addr && !fpsimd_restored) {
 		err |= protected_restore_lasx_context(&extctx);
-	else if (extctx.lsx.addr)
+		fpsimd_restored = true;
+	}
+#endif
+
+#ifdef CONFIG_CPU_HAS_LSX
+	if (extctx.lsx.addr && !fpsimd_restored) {
 		err |= protected_restore_lsx_context(&extctx);
-	else if (extctx.fpu.addr)
+		fpsimd_restored = true;
+	}
+#endif
+
+#ifdef CONFIG_CPU_HAS_FPU
+	if (extctx.fpu.addr && !fpsimd_restored) {
 		err |= protected_restore_fpu_context(&extctx);
+		fpsimd_restored = true;
+	}
+#endif
 
 #ifdef CONFIG_CPU_HAS_LBT
 	if (extctx.lbt.addr)

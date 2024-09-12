@@ -132,7 +132,7 @@ static int __init eiointc_parse_madt(union acpi_subtable_headers *header,
 
 static int __init acpi_cascade_irqdomain_init(void)
 {
-	int r;
+	int r = 0;
 
 	r = acpi_table_parse_madt(ACPI_MADT_TYPE_LIO_PIC, liointc_parse_madt, 0);
 	if (r < 0)
