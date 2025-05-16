@@ -262,12 +262,14 @@ struct execmem_info __init *execmem_arch_setup(void)
 {
 	execmem_info = (struct execmem_info){
 		.ranges = {
+#ifdef MODULES_VADDR
 			[EXECMEM_DEFAULT] = {
 				.start	= MODULES_VADDR,
 				.end	= MODULES_END,
 				.pgprot	= PAGE_KERNEL,
 				.alignment = 1,
 			},
+#endif
 		},
 	};
 

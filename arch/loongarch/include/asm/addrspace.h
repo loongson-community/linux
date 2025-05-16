@@ -54,7 +54,7 @@ extern unsigned long vm_map_base;
 #else
 #define DMW_PABITS	28
 #endif
-#define TO_PHYS_MASK	((1ULL << DMW_PABITS) - 1)
+#define TO_PHYS_MASK	((_ULL(1) << _ULL(DMW_PABITS)) - 1)
 
 /*
  * Memory above this physical address will be considered highmem.
@@ -124,7 +124,11 @@ extern unsigned long vm_map_base;
 /*
  * Returns the physical address of a KPRANGEx / XKPRANGE address
  */
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
 #define PHYSADDR(a)		((_ACAST64_(a)) & TO_PHYS_MASK)
+#else
+#define PHYSADDR(a)		((_ACAST32_(a)) & TO_PHYS_MASK)
+#endif
 
 /*
  * On LoongArch, I/O ports mappring is following:

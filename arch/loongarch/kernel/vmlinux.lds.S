@@ -6,7 +6,11 @@
 
 #define PAGE_SIZE _PAGE_SIZE
 #define RO_EXCEPTION_TABLE_ALIGN	4
+#ifdef CONFIG_64BIT
 #define PHYSADDR_MASK			0xffffffffffff /* 48-bit */
+#else
+#define PHYSADDR_MASK			0xfffffff /* 28-bit */
+#endif
 
 /*
  * Put .bss..swapper_pg_dir as the first thing in .bss. This will
