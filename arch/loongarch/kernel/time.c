@@ -106,7 +106,7 @@ static inline unsigned long get_loops_per_jiffy(void)
 {
 	u64 lpj = const_clock_freq;
 
-	do_div(const_clock_freq, HZ);
+	do_div(lpj, HZ);
 
 	return lpj;
 }
