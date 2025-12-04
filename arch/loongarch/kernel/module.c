@@ -316,22 +316,20 @@ static int apply_r_larch_b26(struct module *mod,
 	return 0;
 }
 
-static int apply_r_larch_pcadd(struct module *mod, u32 *location, Elf_Addr v,
+static int apply_r_larch_pcadd(struct module *mod, Elf_Shdr *sechdrs,
+			u32 *insn_location, u32 *base_location, Elf_Addr v,
 			long *rela_stack, size_t *rela_stack_top, unsigned int type)
 {
-	union loongarch_instruction *insn = (union loongarch_instruction *)location;
+	union loongarch_instruction *insn = (union loongarch_instruction *)insn_location;
 	/* Use s32 for a sign-extension deliberately. */
-	s32 offset_hi20 = (void *)((v + 0x800)) - (void *)((Elf_Addr)location);
+	s32 offset = (void *)((v + 0x800)) - (void *)((Elf_Addr)base_location);
 
 	switch (type) {
 	case R_LARCH_PCADD_LO12:
-	case R_LARCH_GOT_PCADD_LO12:
-		insn->reg2i12_format.immediate = v & 0xfff;
+		insn->reg2i12_format.immediate = offset & 0xfff;
 		break;
 	case R_LARCH_PCADD_HI20:
-	case R_LARCH_GOT_PCADD_HI20:
-		v = offset_hi20 >> 12;
-		insn->reg1i20_format.immediate = v & 0xfffff;
+		insn->reg1i20_format.immediate = (offset >> 12) & 0xfffff;
 		break;
 	default:
 		pr_err("%s: Unsupport relocation type %u\n", mod->name, type);
@@ -339,6 +337,31 @@ static int apply_r_larch_pcadd(struct module *mod, u32 *location, Elf_Addr v,
 	}
 
 	return 0;
+}
+
+static int apply_r_larch_got_pcadd(struct module *mod, Elf_Shdr *sechdrs,
+			u32 *insn_location, u32 *base_location, Elf_Addr v,
+			long *rela_stack, size_t *rela_stack_top, unsigned int type)
+{
+	Elf_Addr got = module_emit_got_entry(mod, sechdrs, v);
+
+	if (!got)
+		return -EINVAL;
+
+	switch (type) {
+	case R_LARCH_GOT_PCADD_LO12:
+		type = R_LARCH_PCADD_LO12;
+		break;
+	case R_LARCH_GOT_PCADD_HI20:
+		type = R_LARCH_PCADD_HI20;
+		break;
+	default:
+		pr_err("%s: Unsupport relocation type %u\n", mod->name, type);
+		return -EINVAL;
+	}
+
+	return apply_r_larch_pcadd(mod, insn_location, base_location, got,
+				rela_stack, rela_stack_top, type);
 }
 
 static int apply_r_larch_pcala(struct module *mod, u32 *location, Elf_Addr v,
@@ -454,7 +477,6 @@ static reloc_rela_handler reloc_rela_handlers[] = {
 	[R_LARCH_SOP_POP_32_S_10_5 ... R_LARCH_SOP_POP_32_U] = apply_r_larch_sop_imm_field,
 	[R_LARCH_ADD32 ... R_LARCH_SUB64]		     = apply_r_larch_add_sub,
 	[R_LARCH_PCALA_HI20 ... R_LARCH_PCALA64_HI12]	     = apply_r_larch_pcala,
-	[R_LARCH_PCADD_HI20 ... R_LARCH_GOT_PCADD_LO12]	     = apply_r_larch_pcadd,
 	[R_LARCH_32_PCREL]				     = apply_r_larch_32_pcrel,
 	[R_LARCH_64_PCREL]				     = apply_r_larch_64_pcrel,
 };
@@ -470,6 +492,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 	size_t rela_stack_top = 0;
 	reloc_rela_handler handler;
 	void *location;
+	void *base;
 	Elf_Addr v;
 	Elf_Sym *sym;
 	Elf_Rela *rel = (void *) sechdrs[relsec].sh_addr;
@@ -509,6 +532,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 		       (int)ELF_R_TYPE(rel[i].r_info),
 		       (unsigned long)sym->st_value, (unsigned long)rel[i].r_addend, (unsigned long)location);
 
+		base = location;
 		v = sym->st_value + rel[i].r_addend;
 
 		if (type == R_LARCH_PCADD_LO12 || type == R_LARCH_GOT_PCADD_LO12) {
@@ -522,19 +546,10 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 
 				/* Find the corresponding HI20 relocation entry */
 				if (hi20_location == sym->st_value && (hi20_type == type - 1)) {
-					s32 hi20, lo12;
 					Elf_Sym *hi20_sym =
 						(Elf_Sym *)sechdrs[symindex].sh_addr + ELF_R_SYM(rel[j].r_info);
-					unsigned long hi20_sym_val = hi20_sym->st_value + rel[j].r_addend;
-
-					/* Calculate LO12 offset */
-					size_t offset = hi20_sym_val - hi20_location;
-					if (hi20_type == R_LARCH_GOT_PCADD_HI20) {
-						offset = module_emit_got_entry(mod, sechdrs, hi20_sym_val);
-						offset = offset - hi20_location;
-					}
-					hi20 = (offset + 0x800) & 0xfffff000;
-					v = lo12 = offset - hi20;
+					v = hi20_sym->st_value + rel[j].r_addend;
+					base = hi20_location;
 					found = true;
 					break;
 				}
@@ -558,6 +573,14 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 			break;
 		case R_LARCH_GOT_PC_HI20...R_LARCH_GOT_PC_LO12:
 			err = apply_r_larch_got_pc(mod, sechdrs, location,
+						     v, rela_stack, &rela_stack_top, type);
+			break;
+		case R_LARCH_PCADD_HI20...R_LARCH_PCADD_LO12:
+			err = apply_r_larch_pcadd(mod, sechdrs, location, base,
+						     v, rela_stack, &rela_stack_top, type);
+			break;
+		case R_LARCH_GOT_PCADD_HI20...R_LARCH_GOT_PCADD_LO12:
+			err = apply_r_larch_got_pcadd(mod, sechdrs, location, base,
 						     v, rela_stack, &rela_stack_top, type);
 			break;
 		case R_LARCH_SOP_PUSH_PLT_PCREL:
